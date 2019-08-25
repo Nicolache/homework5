@@ -147,25 +147,52 @@ class Base(metaclass=MetaBase):
 
     @classmethod
     def get_fields(cls):
-
+        """
+        cls.__dict__.items().keys: id, name, email; id, user_id, post
+        cls.__dict__.items().values: base.Field object
+        """
         for name, field in cls.__dict__.items():
+            # if not type(field)==str:
+            #     print(name)
+            #     print(field.definition)
             if isinstance(field, Field):
                 yield name, field
 
     @classmethod
+    def get_field_definitions(cls):
+        """Returns a string like:
+        id Integer NOT NULL PRIMARY KEY AUTOINCREMENT,
+        name Varchar(100) NOT NULL  ,
+        email Varchar(100) NOT NULL  
+        id Integer NOT NULL PRIMARY KEY AUTOINCREMENT,
+        user_id Integer NOT NULL  , post Varchar(100)
+        """
+        definitions_str = f''
+        for name, field in cls.get_fields():
+            definitions_str += f'{name} {field.definition}, '
+        definitions_str = definitions_str[:-2]
+        return definitions_str
+
+    @classmethod
+    def get_keys(cls):
+        """Returns a string like:
+        , FOREIGN KEY (user_id) references users(id)
+        """
+        keys = f''
+        for name, field in cls.get_fields():
+            if field.foreign_key_definition:
+                keys += f', {field.foreign_key_definition}'
+        return keys
+
+
+    @classmethod
     def create_table(cls):
-        fields_definition = ', '.join(
-            f'{name} {field.definition}' for name, field in cls.get_fields()
-        )
-        keys = ' '.join(
-            f', {field.foreign_key_definition}'
-            for _, field in cls.get_fields()
-            if field.foreign_key_definition
-        )
+        fields_definition = cls.get_field_definitions()
+        keys = cls.get_keys()
         query = cls._create_table_template.format(
             table=cls.__tablename__,
             fields=fields_definition,
             foreign_keys=keys,
         )
-        print(query)
+        # print(query)
         cls.get_cursor().execute(query)

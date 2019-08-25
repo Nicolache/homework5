@@ -5,8 +5,8 @@ from base import create_session, Base, Field, Integer, String
 session = create_session('db')
 Base.set_session(session)
 
-print(Integer)
-print(String(200))
+# print(Integer)
+# print(String(200))
 
 class User(Base):
 
