@@ -39,6 +39,7 @@ class Field(object):
         autoincrement=False,
         not_null=True,
         foreign=None,
+        default_value=None,
     ):
         if not type:
             raise Exception('Please, specify type of column')
@@ -49,6 +50,7 @@ class Field(object):
         self.autoincrement = autoincrement
         self.not_null = not_null
         self.foreign = foreign
+        self.default_value = default_value
         self.table_class = None
 
     @property
@@ -98,7 +100,8 @@ class MetaBase(type):
     is inherited into this metaclass. The "type" class is used for classes
     creation in python.
     The common purpose of usage metaclasses is for dynamic classes changing
-    at the time of its creation.
+    at the time of its creation. It this particular case,
+    it sets table class attribute for every field in this class.
     """
     def __init__(cls, name, bases, attrs):
         """
@@ -127,6 +130,11 @@ class Base(metaclass=MetaBase):
 
     _session = None  # session inside class
     __tablename__ = None
+
+    def __init__(self, **kwargs):
+        super().__init__()
+        for field_name, field_instance in self.__class__.get_fields():
+            self.__setattr__(field_name, kwargs.get(field_name, field_instance.default_value))
 
     @classmethod
     def set_session(cls, session):
@@ -204,3 +212,58 @@ class Base(metaclass=MetaBase):
         )
         # print(query)
         cls.get_cursor().execute(query)
+
+    @classmethod
+    def drop_table(cls):
+
+        query = cls._drop_table_template.format(
+            table = cls.__tablename__
+        )
+        cls.get_cursor().execute(query)
+
+#    def save(cls):
+#
+#        query = cls._insert_template.format(
+#            table = cls.__tablename__,
+#            fields = ', '.join(cls.__dict__.keys()),
+#            values = ', '.join(
+#                f'"{value}"' if value else 'NULL'
+#                for value in cls.__dict__.values()
+#            ),
+#        )
+
+    def save(cls):
+
+        query = cls._insert_template.format(
+            table = cls.__tablename__,
+            fields = ', '.join(cls.__dict__.keys()),
+            values = ', '.join(
+                f'"{value}"' if value else 'NULL'
+                for value in cls.__dict__.values()
+            ),
+        )
+        try:
+            cursor = cls.get_cursor()
+            cursor.execute(query)
+            cls.get_session().commit()
+        except Exception as e:
+            print(f'sqlite error: {e}')
+            return
+
+        last_id = cursor.lastrowid
+        for name, field in cls.get_fields():
+            if field.primary:
+                cls.__setattr__(name, last_id)
+
+    @classmethod
+    def update(cls, **kwargs):
+
+        query = Query().update(cls, **kwargs)
+
+    def delete(cls):
+
+        query = _delete_template.format(
+            table = cls.__tablename__,
+        )
+        cls.get_cursor().execute(query)
+

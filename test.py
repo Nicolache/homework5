@@ -48,3 +48,7 @@ class Post(Base):
 #print([field[1].__dict__ for field in Post.get_fields()])
 User.create_table()
 Post.create_table()
+user1 = User(name='user1', email='elf_marsch_kompania_kommandant_unter_schrift@mail.de')
+user1.save()
+# User.delete().filter(User.name == 'user2').call()
+# User.drop_table()
