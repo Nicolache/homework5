@@ -53,6 +53,10 @@ class Field(object):
         self.default_value = default_value
         self.table_class = None
 
+    @classmethod
+    def value(cls, val):
+        return val or 'NULL'
+
     @property
     def definition(self):
         """Returns a formatted string applying the output of _definition_dict
@@ -130,11 +134,18 @@ class Base(metaclass=MetaBase):
 
     _session = None  # session inside class
     __tablename__ = None
+    _filter_str = ''
 
     def __init__(self, **kwargs):
         super().__init__()
         for field_name, field_instance in self.__class__.get_fields():
             self.__setattr__(field_name, kwargs.get(field_name, field_instance.default_value))
+
+    @classmethod
+    def filter(cls, condition):
+
+        cls._filter_str = str(condition)
+        return cls
 
     @classmethod
     def set_session(cls, session):
@@ -221,17 +232,6 @@ class Base(metaclass=MetaBase):
         )
         cls.get_cursor().execute(query)
 
-#    def save(cls):
-#
-#        query = cls._insert_template.format(
-#            table = cls.__tablename__,
-#            fields = ', '.join(cls.__dict__.keys()),
-#            values = ', '.join(
-#                f'"{value}"' if value else 'NULL'
-#                for value in cls.__dict__.values()
-#            ),
-#        )
-
     def save(cls):
 
         query = cls._insert_template.format(
@@ -256,9 +256,29 @@ class Base(metaclass=MetaBase):
                 cls.__setattr__(name, last_id)
 
     @classmethod
+    def call(cls):
+
+        try:
+            result = cls.get_cursor().execute(self.query).fetchall()
+            self._cls.get_session().commit()
+        except Exception as e:
+            print(f'sqlite error: {e}')
+
+        return result
+
+    @classmethod
     def update(cls, **kwargs):
 
-        query = Query().update(cls, **kwargs)
+        fields = {
+            key: cls.__dict__.get(key).__class__.value(value)
+            for key, value in kwargs.items()
+        }
+
+        query = cls._update_template.format(
+            table = cls.__tablename__,
+            values = ', '.join(f'{field} = "{value}"' for field, value in fields.items())
+        )
+        return cls
 
     def delete(cls):
 

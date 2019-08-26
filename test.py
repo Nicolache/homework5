@@ -50,5 +50,8 @@ User.create_table()
 Post.create_table()
 user1 = User(name='user1', email='elf_marsch_kompania_kommandant_unter_schrift@mail.de')
 user1.save()
+User.update(name = 'user2').filter(User.name == 'user1').call()
+print(User.get().call())
+
 # User.delete().filter(User.name == 'user2').call()
 # User.drop_table()
