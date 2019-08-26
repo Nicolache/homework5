@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
-from base import create_session, Base, Field, Integer, String
+from base import create_sqlite3_session, Base, Field, Integer, String
 
-session = create_session('db')
+session = create_sqlite3_session('db')
 Base.set_session(session)
 
 # print(Integer)

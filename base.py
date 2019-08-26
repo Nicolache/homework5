@@ -1,9 +1,9 @@
 import sqlite3
 
 
-def create_session(db):
+def create_sqlite3_session(filename):
 
-    return sqlite3.connect(db)
+    return sqlite3.connect(filename)
 
 
 class MetaType(type):
@@ -53,10 +53,18 @@ class Field(object):
 
     @property
     def definition(self):
+        """Returns a formatted string applying the output of _definition_dict
+        function to unformatted string _template_definition.
+        """
         return self._template_definition.format(**self._definition_dict)
 
     @property
     def _definition_dict(self):
+        """Returns a dictionary of query parameters that is used
+        for applying to string like:
+        _template_definition = '{type} {not_null} {primary_key} {autoincrement}'
+        and building a query string.
+        """
         return {
             'type': self.type,
             'not_null': 'NOT NULL' if self.not_null else '',
@@ -148,13 +156,11 @@ class Base(metaclass=MetaBase):
     @classmethod
     def get_fields(cls):
         """
-        cls.__dict__.items().keys: id, name, email; id, user_id, post
-        cls.__dict__.items().values: base.Field object
+        cls.__dict__.items().{keys}: id, name, email; id, user_id, post
+        cls.__dict__.items().{values}: base.Field object
+        cls.__dict__.items().{values}.definition: string
         """
         for name, field in cls.__dict__.items():
-            # if not type(field)==str:
-            #     print(name)
-            #     print(field.definition)
             if isinstance(field, Field):
                 yield name, field
 
@@ -187,6 +193,8 @@ class Base(metaclass=MetaBase):
 
     @classmethod
     def create_table(cls):
+        """Returns a string of a complete query.
+        """
         fields_definition = cls.get_field_definitions()
         keys = cls.get_keys()
         query = cls._create_table_template.format(
