@@ -44,14 +44,14 @@ class Post(Base):
         not_null=False,
     )
 
-#print([field[1].__dict__ for field in User.get_fields()])
-#print([field[1].__dict__ for field in Post.get_fields()])
 User.create_table()
 Post.create_table()
-user1 = User(name='user1', email='elf_marsch_kompania_kommandant_unter_schrift@mail.de')
+user1 = User(name='user1', email='elf_marsch_kompanija_kommandant_unter_schrift@mail.de')
 user1.save()
-User.update(name = 'user2').filter(User.name == 'user1').call()
-print(User.get().call())
+# User.update(name = 'user2').filter(User.name == 'user1').call()
+User.update(email = 'deutschen_soldaten_unter_ofizeren@mail.de').filter(User.email == 'elf_marsch_kompanija_kommandant_unter_schrift@mail.de')
+Post.drop_table()
+ 
+# print(User.get().call())
 
 # User.delete().filter(User.name == 'user2').call()
-# User.drop_table()

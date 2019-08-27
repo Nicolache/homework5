@@ -256,17 +256,6 @@ class Base(metaclass=MetaBase):
                 cls.__setattr__(name, last_id)
 
     @classmethod
-    def call(cls):
-
-        try:
-            result = cls.get_cursor().execute(self.query).fetchall()
-            self._cls.get_session().commit()
-        except Exception as e:
-            print(f'sqlite error: {e}')
-
-        return result
-
-    @classmethod
     def update(cls, **kwargs):
 
         fields = {
@@ -278,6 +267,12 @@ class Base(metaclass=MetaBase):
             table = cls.__tablename__,
             values = ', '.join(f'{field} = "{value}"' for field, value in fields.items())
         )
+
+        try:
+            result = cls.get_cursor().execute(query).fetchall()
+            cls.get_session().commit()
+        except Exception as e:
+            print(f'sqlite error: {e}')
         return cls
 
     def delete(cls):
