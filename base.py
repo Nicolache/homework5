@@ -52,10 +52,20 @@ class Field(object):
         self.foreign = foreign
         self.default_value = default_value
         self.table_class = None
+        self._fk = None
 
+    
     @classmethod
     def value(cls, val):
         return val or 'NULL'
+
+    @property
+    def full_name(self):
+        return f'{self.tablename}.{self.name}'
+
+    @property
+    def as_name(self):
+        return f'{self.tablename}_{self.name}'
 
     @property
     def definition(self):
@@ -120,6 +130,8 @@ class MetaBase(type):
         for attr_name, attr_value in attrs.items():
             if isinstance(attr_value, Field):
                 attr_value.set_table_class(cls)
+                if attr_value.foreign:
+                    attr_value.foreign.__setattr__('_fk', cls)
 
 
 class Base(metaclass=MetaBase):
@@ -131,6 +143,7 @@ class Base(metaclass=MetaBase):
     _select_template = 'select {fields} from {table}'
     _update_template = 'update {table} set {values}'
     _delete_template = 'delete from {table}'
+    _join_template = 'left join {fk_table} on {fk_table}.{fk} = {pk_table}.{pk}'
 
     _session = None  # session inside class
     __tablename__ = None
@@ -184,6 +197,21 @@ class Base(metaclass=MetaBase):
                 yield name, field
 
     @classmethod
+    def get_fields_dict(cls):
+
+        return {
+            field.full_name: field.__class__.value(getattr(cls, name))
+            for name, field in cls.get_fields()
+        }
+
+    @classmethod
+    def get_foreign_field_by_table(cls, table):
+
+        for name, field in cls.get_fields():
+            if field.foreign and field.foreign.table_class is table:
+                return field
+
+    @classmethod
     def get_field_definitions(cls):
         """Returns a string like:
         id Integer NOT NULL PRIMARY KEY AUTOINCREMENT,
@@ -233,7 +261,7 @@ class Base(metaclass=MetaBase):
         cls.get_cursor().execute(query)
 
     def save(cls):
-
+        print(cls)
         query = cls._insert_template.format(
             table = cls.__tablename__,
             fields = ', '.join(cls.__dict__.keys()),
@@ -275,10 +303,59 @@ class Base(metaclass=MetaBase):
             print(f'sqlite error: {e}')
         return cls
 
+    @classmethod
+    def join(cls):
+
+        for name, field in cls.get_fields():
+            if field._fk and field.table_class == cls:
+                fk_table = field._fk
+                yield {
+                    'fk_table': fk_table.__tablename__,
+                    'fk': fk_table.get_foreign_field_by_table(cls).name,
+                    'pk_table': cls.__tablename__,
+                    'pk': field.name,
+                }
+ 
+    @classmethod
+    def get(cls, *args):
+
+        fk_fields = {}
+
+        for name, field in cls.get_fields():
+            if field._fk and field.table_class == cls:
+                fk_table = field._fk
+                fk_fields = dict(fk_table.get_fields_dict())
+
+        all_fields = dict(cls.get_fields_dict())
+        all_fields.update(fk_fields)
+
+        fields = {name: field for name, field in all_fields.items() if name in args}
+
+        if not fields:
+            fields = all_fields
+
+        query = cls._select_template.format(
+            table = cls.__tablename__,
+            fields = ', '.join(
+                f'{name} as {field.as_name}' for name, field in fields.items()
+            ),
+            joins = ' '.join(
+                cls._join_template.format(**line) for line in cls.join()
+            ),
+        )
+        print(query)
+
+        try:
+            result = cls.get_cursor().execute(query).fetchall()
+            cls.get_session().commit()
+        except Exception as e:
+            print(f'sqlite error: {e}')
+
+        return cls
+
     def delete(cls):
 
         query = _delete_template.format(
             table = cls.__tablename__,
         )
         cls.get_cursor().execute(query)
-
