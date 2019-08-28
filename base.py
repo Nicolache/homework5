@@ -136,14 +136,14 @@ class MetaBase(type):
 
 class Base(metaclass=MetaBase):
 
-    _create_table_template = \
-        'create table if not exists {table} ({fields} {foreign_keys})'
+    _create_table_template = 'create table if not exists {table} ({fields} {foreign_keys})'
     _drop_table_template = 'drop table if exists {table}'
     _insert_template = 'insert into {table}({fields}) values ({values})'
-    _select_template = 'select {fields} from {table}'
+    _select_template = 'select {fields} from {table} {joins}'
     _update_template = 'update {table} set {values}'
     _delete_template = 'delete from {table}'
     _join_template = 'left join {fk_table} on {fk_table}.{fk} = {pk_table}.{pk}'
+    # _select_template = 'select {fields} from {table}'
 
     _session = None  # session inside class
     __tablename__ = None
@@ -261,7 +261,7 @@ class Base(metaclass=MetaBase):
         cls.get_cursor().execute(query)
 
     def save(cls):
-        print(cls)
+
         query = cls._insert_template.format(
             table = cls.__tablename__,
             fields = ', '.join(cls.__dict__.keys()),
@@ -324,9 +324,13 @@ class Base(metaclass=MetaBase):
         for name, field in cls.get_fields():
             if field._fk and field.table_class == cls:
                 fk_table = field._fk
-                fk_fields = dict(fk_table.get_fields_dict())
+                # fk_fields = dict(fk_table.get_fields_dict())
+                fk_fields = dict(fk_table.get_fields())
+        print(fk_table)
+        print(fk_fields)
 
-        all_fields = dict(cls.get_fields_dict())
+        # all_fields = dict(cls.get_fields_dict())
+        all_fields = dict(cls.get_fields())
         all_fields.update(fk_fields)
 
         fields = {name: field for name, field in all_fields.items() if name in args}
@@ -336,12 +340,8 @@ class Base(metaclass=MetaBase):
 
         query = cls._select_template.format(
             table = cls.__tablename__,
-            fields = ', '.join(
-                f'{name} as {field.as_name}' for name, field in fields.items()
-            ),
-            joins = ' '.join(
-                cls._join_template.format(**line) for line in cls.join()
-            ),
+            fields = ', '.join(f'{name} as {field.as_name}' for name, field in fields.items()),
+            joins = ' '.join(cls._join_template.format(**line) for line in cls.join()),
         )
         print(query)
 
@@ -352,6 +352,34 @@ class Base(metaclass=MetaBase):
             print(f'sqlite error: {e}')
 
         return cls
+
+#     @classmethod
+#     def get(self, cls, *args):
+# 
+#         self._cls = cls
+#         fk_fields = {}
+# 
+#         for name, field in cls.get_fields():
+#             if field._fk and field.table_class == cls:
+#                 fk_table = field._fk
+#                 fk_fields = dict(fk_table.get_fields_dict())
+# 
+#         all_fields = dict(cls.get_fields_dict())
+#         all_fields.update(fk_fields)
+# 
+#         fields = {name: field for name, field in all_fields.items() if name in args}
+# 
+#         if not fields:
+#             fields = all_fields
+# 
+#         self._query = self._select_template.format(
+#             table = cls.__tablename__,
+#             fields = ', '.join(f'{name} as {field.as_name}' for name, field in fields.items()),
+#             joins = ' '.join(self._join_template.format(**line) for line in self.join()),
+#         )
+#         print(self._query)
+# 
+#         return self
 
     def delete(cls):
 
