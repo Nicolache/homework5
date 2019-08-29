@@ -48,8 +48,9 @@ user1.save()
 post1 = Post(user_id=user1.id, post='Achtung!!!')
 post1.save()
 User.update(name = 'user2').filter(User.name == 'user1')
-result = User.get(User, 'id', 'name').filter(User.name == 'user1')
-# print(result)
+result = User.get('id', 'name').filter(User.name == 'user1')
+# print(result.__dict__.keys(), result.__dict__.values())
+print(result)
  
 # print(User.get().call())
 

@@ -198,7 +198,6 @@ class Base(metaclass=MetaBase):
 
     @classmethod
     def get_fields_dict(cls):
-
         return {
             field.full_name: field.__class__.value(getattr(cls, name))
             for name, field in cls.get_fields()
@@ -340,7 +339,7 @@ class Base(metaclass=MetaBase):
 
         query = cls._select_template.format(
             table = cls.__tablename__,
-            fields = ', '.join(f'{name} as {field.as_name}' for name, field in fields.items()),
+            fields = ', '.join(f'{cls.__tablename__}.{name} as {field.as_name}' for name, field in fields.items()),
             joins = ' '.join(cls._join_template.format(**line) for line in cls.join()),
         )
         print(query)
